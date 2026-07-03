@@ -1,0 +1,26 @@
+# ZSH Sync specific
+chunks/
+chunks.backup.*
+config.json
+logs/
+
+# macOS
+.DS_Store
+*.swp
+*.swo
+*~
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# Shell
+*.sh.bak
+
+# Temporary
+.tmp/
+temp/
+*.log

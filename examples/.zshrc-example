@@ -1,0 +1,89 @@
+# zsh-sync Configuration Example
+# Add these lines to your ~/.zshrc
+
+# ============================================================================
+# ZSH Sync Setup
+# ============================================================================
+
+# Set sync mode
+export SYNC_MODE=SYNCALL    # or NOSYNC for isolated devices
+
+# Backup directory
+export CHUNK_BACKUP_DIR="$HOME/zsh-sync"
+
+# Auto-backup on shell startup (optional)
+if [[ -f "$CHUNK_BACKUP_DIR/chunk-backup.sh" ]]; then
+    # Backup on shell startup (daily cooldown to prevent spam)
+    _chunk_backup_auto() {
+        local cooldown_file="$HOME/.chunk_backup_cooldown"
+        local cooldown_interval=86400  # 1 day in seconds
+        
+        if [[ ! -f "$cooldown_file" ]]; then
+            # First time - create cooldown file
+            touch "$cooldown_file"
+            cd "$CHUNK_BACKUP_DIR" && SYNC_MODE="$SYNC_MODE" ./chunk-backup.sh >/dev/null 2>&1
+        else
+            # Check if enough time has passed
+            local last_backup=$(stat -f%m "$cooldown_file" 2>/dev/null || echo 0)
+            local now=$(date +%s)
+            local elapsed=$((now - last_backup))
+            
+            if [[ $elapsed -gt $cooldown_interval ]]; then
+                touch "$cooldown_file"
+                cd "$CHUNK_BACKUP_DIR" && SYNC_MODE="$SYNC_MODE" ./chunk-backup.sh >/dev/null 2>&1
+            fi
+        fi
+    }
+    
+    # Run on shell startup
+    _chunk_backup_auto
+fi
+
+# ============================================================================
+# Convenience Functions
+# ============================================================================
+
+# Manual backup
+chunk-backup() {
+    cd "$CHUNK_BACKUP_DIR" && SYNC_MODE="$SYNC_MODE" ./chunk-backup.sh
+}
+
+# Check backup status
+chunk-status() {
+    if [[ -f "$CHUNK_BACKUP_DIR/config.json" ]]; then
+        echo "ZSH Sync Status:"
+        jq '.[].chunks | {timestamp, count, command_count}' "$CHUNK_BACKUP_DIR/config.json"
+    else
+        echo "No backup found. Run: chunk-backup"
+    fi
+}
+
+# Force backup
+chunk-force() {
+    cd "$CHUNK_BACKUP_DIR" && SYNC_MODE="$SYNC_MODE" ./chunk-backup.sh --force
+}
+
+# Reset backup
+chunk-reset() {
+    cd "$CHUNK_BACKUP_DIR" && SYNC_MODE="$SYNC_MODE" ./chunk-backup.sh --reset
+}
+
+# View backup history
+chunk-history() {
+    cd "$CHUNK_BACKUP_DIR" && git log --oneline | head -20
+}
+
+# Clean up old backups
+chunk-cleanup() {
+    cd "$CHUNK_BACKUP_DIR" && ./chunk-backup.sh --cleanup
+}
+
+# ============================================================================
+# Aliases
+# ============================================================================
+
+alias zsh-sync="cd $CHUNK_BACKUP_DIR"
+alias zsh-backup="chunk-backup"
+alias zsh-status="chunk-status"
+
+echo "zsh-sync ready! Use 'chunk-backup' to backup, 'chunk-status' to check status"
